@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate empty wave file</title>
+</head>
+<body>
+    <button onclick="generateSilentWAV()">🎵 Generate WAV file</button>
+    <script type="text/javascript">
+
+    function generateSilentWAV() {
+        const sampleRate = 44100; // Standard WAV sample rate
+        const durationInSeconds = 1;
+        const channelCount = 2;
+        const numSamples = sampleRate * durationInSeconds * channelCount;
+        
+        const audioBuffer = new Float32Array(numSamples).fill(0);
+        
+        const wavBuffer = encodeWAV(channelCount, audioBuffer, sampleRate);
+
+        const blob = new Blob([wavBuffer], { type: "audio/wav" });
+        const url = URL.createObjectURL(blob);
+        
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "empty.wav";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    // Fonction d'encodage en WAV (PCM 16-bit mono)
+    function encodeWAV(channelCount, samples, sampleRate) {
+        const buffer = new ArrayBuffer(44 + samples.length * 2);
+        const view = new DataView(buffer);
+
+        // Header WAV
+        writeString(view, 0, "RIFF");                // ChunkID
+        view.setUint32(4, 36 + samples.length * 2, true); // ChunkSize
+        writeString(view, 8, "WAVE");                // Format
+        writeString(view, 12, "fmt ");               // Subchunk1ID
+        view.setUint32(16, 16, true);                // Subchunk1Size (PCM)
+        view.setUint16(20, 1, true);                 // AudioFormat (PCM = 1)
+        view.setUint16(22, channelCount, true);                 // NumChannels (Mono = 1)
+        view.setUint32(24, sampleRate, true);        // SampleRate
+        view.setUint32(28, sampleRate * 2 * channelCount, true);    // ByteRate (SampleRate * NumChannels * BitsPerSample/8)
+        view.setUint16(32, 2 * channelCount, true);                 // BlockAlign (NumChannels * BitsPerSample/8)
+        view.setUint16(34, 16, true);                // BitsPerSample (16-bit)
+        writeString(view, 36, "data");               // Subchunk2ID
+        view.setUint32(40, samples.length * 2, true); // Subchunk2Size
+
+        // Écriture des données audio en PCM 16-bit
+        let offset = 44;
+        for (let i = 0; i < samples.length; i++, offset += 2) {
+            view.setInt16(offset, samples[i] * 0x7FFF, true);
+        }
+
+        return buffer;
+    }
+
+    // Fonction pour écrire une chaîne dans un DataView
+    function writeString(view, offset, string) {
+        for (let i = 0; i < string.length; i++) {
+            view.setUint8(offset + i, string.charCodeAt(i));
+        }
+    }
+
+    </script>
+</body>
+</html>
